@@ -1,0 +1,170 @@
+#!/usr/bin/env python3
+
+import json
+import os
+import sys
+import termios
+import tty
+
+
+# FIXME: Better way to make this
+def clear():
+    os.system("clear")
+
+
+#
+# The format of the book could be the following
+#
+# NOTE: Probably don't need to validate that each
+#       event has same user ID's as the main
+#       script will take care of ensuring sanity.
+#
+# book = {
+#     "event0" {
+#         "user0": {
+#             "payment": 42,
+#             "share": 0.3
+#         },
+#         "user1": {
+#             "payment": 666,
+#             "share": 0.7
+#         }
+#     }
+# }
+#
+
+
+def add_event(book):
+    # TODO: Append new event to book
+    return dict()  # new book
+
+
+def balance(book):
+    # TODO: Calculates event wise (or maybe summed-up suffices?)
+    #       user wise balances
+    return dict()
+
+
+def flow(book):
+    # TODO: Calculates how money flows using balances
+    return dict()
+
+
+#
+# Command line tools
+#
+
+
+def _getch():
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(sys.stdin.fileno())
+        ch = sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    return ch
+
+
+def getch():
+    """Get character, clear, and return
+
+    """
+    ch = _getch()
+    clear()
+    return ch
+
+
+def init_prompt():
+    # TODO: Add validation of input
+    print(
+        """
+           _______________________________________________________
+          --------------------------------------------------------
+         / Concourse -- A dead simple utility for sharing costs /
+        --------------------------------------------------------
+
+        Please select what to do:
+
+        (n) Start a new project
+        (l) Load an existing project
+
+        """
+    )
+    return getch()
+
+
+def project_prompt():
+    # TODO: Add project summary on top
+    #       - Contains name, total cost etc.
+    print(
+        """
+        You may choose to
+
+        (a) Add bill
+        (b) Display current balance
+        (e) Export results
+        (p) Print results
+        (q) Quit
+        (s) Save
+
+        """
+    )
+    return getch()
+
+
+def act(ch):
+    return (
+        new_project() if ch == "n" else
+        load() if ch == "l" else
+        add_bill() if ch == "a" else
+        display_balance() if ch == "b" else
+        export_results() if ch == "e" else
+        print_results() if ch == "p" else
+        quit() if ch == "q" else
+        save() if ch == "s" else
+        unknown()
+    )
+
+
+# TODO: All the below actions return back to project_prompt
+
+
+def export_results():
+    return
+
+
+def print_results():
+    return
+
+
+def unknown():
+    return
+
+
+def save():
+    return
+
+
+def new_project():
+    return
+
+
+def load():
+    return
+
+
+def add_bill():
+    return
+
+
+def display_balance():
+    return
+
+
+# TODO: init_prompt => project_prompt => update book
+
+
+if __name__ == "__main__":
+
+    ch = init_prompt()
