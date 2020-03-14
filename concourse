@@ -7,9 +7,32 @@ import termios
 import tty
 
 
+def update_dict(x, y):
+    return {**x, **y}
+
+
 #
 # State manipulation tools
 #
+
+
+class State:
+    """Program state
+
+    """
+
+    def __init__(self, name, workspace, users, bills):
+        self.name = name
+        self.workspace = workspace
+        self.users = users
+        self.bills = bills
+
+    def save(self):
+        return
+
+    @classmethod
+    def load(cls, fp):
+        return
 
 #
 # The format of the state could be the following
@@ -18,7 +41,7 @@ import tty
 #       event has same user ID's as the main
 #       script will take care of ensuring sanity.
 #
-# book = {
+# bills = {
 #     "event0" {
 #         "user0": {
 #             "payment": 42,
@@ -126,8 +149,25 @@ def save(state):
     return state
 
 
-def new_project(state):
-    return state
+def new_project():
+    # TODO: Render method that prettily prints refreshes
+    print(
+        """
+
+        *** New project ***
+
+        """
+    )
+    name = input("Project name> ")
+    workspace = input("Working directory> ")
+    num = int(input("Number of users> "))
+    users = [input("User #{0}> ".format(i + 1)) for i in range(num)]
+    return State(
+        name=name,
+        workspace=workspace,
+        users=users,
+        bills={}
+    )
 
 
 def load(state):
@@ -175,7 +215,7 @@ def main_prompt():
 
     def act(ch, state):
         return project_prompt(
-            new_project(state) if ch == "n" else
+            new_project()      if ch == "n" else
             load(state)        if ch == "l" else
             _quit()            if ch == "q" else
             unknown(state)
