@@ -192,10 +192,14 @@ def add_bill(state):
         """
     )
     bill_id = input("Identifier> ")
+    equal = input("Equal shares (y/n)> ")
     payments = {
         u: {
             "payment": float(input("{0} paid> ".format(u))),
-            "share": 0.01 * float(input("{0}'s percentage> ".format(u)))
+            "share": (
+                1.0 / len(state.users) if equal == "y" else
+                0.01 * float(input("{0}'s percentage> ".format(u)))
+            )
         } for u in state.users
     }
     bills = update_dict(
