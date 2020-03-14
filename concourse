@@ -7,6 +7,9 @@ import termios
 import tty
 
 
+# TODO: Adopt curses framework for CLI apps
+
+
 def update_dict(x, y):
     return {**x, **y}
 
@@ -300,7 +303,7 @@ def main_prompt():
     def act(ch, state):
         return project_prompt(
             new_project()      if ch == "n" else
-            load()        if ch == "l" else
+            load()             if ch == "l" else
             _quit()            if ch == "q" else
             unknown(state)
         )
@@ -308,12 +311,12 @@ def main_prompt():
     clear()
     print(
         """
-           _______________________________________________________
-          --------------------------------------------------------
-         / Concourse -- A dead simple utility for sharing costs /
-        --------------------------------------------------------
+           _____________________________________________
+          ---------------------------------------------
+         / Concourse -- Share costs and nothing more /
+        ---------------------------------------------
 
-        Please select what to do:
+        *** Main menu ***
 
         <n> Start a new project
         <l> Load an existing project
@@ -325,5 +328,6 @@ def main_prompt():
 
 
 if __name__ == "__main__":
-
+    # TODO: CSV import as cli argument
+    # NOTE: Interactive UI only in Linux but CSV import everywhere
     main_prompt()
