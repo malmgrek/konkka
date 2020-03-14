@@ -34,40 +34,24 @@ class State:
     def load(cls, fp):
         return
 
-#
-# The format of the state could be the following
-#
-# NOTE: Probably don't need to validate that each
-#       event has same user ID's as the main
-#       script will take care of ensuring sanity.
-#
-# bills = {
-#     "event0" {
-#         "user0": {
-#             "payment": 42,
-#             "share": 0.3
-#         },
-#         "user1": {
-#             "payment": 666,
-#             "share": 0.7
-#         }
-#     }
-# }
-#
-
-
-def append_bill(state):
-    """Append new event to state
-
-    """
-    return dict()  # new state
-
 
 def calculate_balance(state):
     """Calculate total balance from all events
 
     """
-    return dict()
+    total = {
+        bill_id: sum([
+            v[u]["payment"] for u in state.users
+        ]) for (bill_id, v) in state.bills.items()
+    }
+    return {
+        u: sum([
+            (
+                v[u]["payment"] -
+                v[u]["share"] * total[bill_id]
+            ) for (bill_id, v) in state.bills.items()
+        ]) for u in state.users
+    }
 
 
 def calculate_flow(state):
@@ -188,7 +172,7 @@ def add_bill(state):
     payments = {
         u: {
             "payment": float(input("{0} paid> ".format(u))),
-            "share": float(input("{0}'s percentage> ".format(u)))
+            "share": 0.01 * float(input("{0}'s percentage> ".format(u)))
         } for u in state.users
     }
     bills = update_dict(
