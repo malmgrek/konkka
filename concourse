@@ -175,7 +175,32 @@ def load(state):
 
 
 def add_bill(state):
-    return state
+    # TODO: Abort option
+    # TODO: Dynamic rendering of information
+    print(
+        """
+
+        *** Add bill ***
+
+        """
+    )
+    bill_id = input("Identifier> ")
+    payments = {
+        u: {
+            "payment": float(input("{0} paid> ".format(u))),
+            "share": float(input("{0}'s percentage> ".format(u)))
+        } for u in state.users
+    }
+    bills = update_dict(
+        state.bills,
+        {bill_id: payments}
+    )
+    return State(
+        name=state.name,
+        workspace=state.workspace,
+        users=state.users,
+        bills=bills
+    )
 
 
 def display_balance(state):
