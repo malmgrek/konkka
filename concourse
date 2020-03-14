@@ -215,7 +215,51 @@ def add_bill(state):
     )
 
 
+def log_bills(state):
+    # TODO: Log shares
+
+    rf = "{:<12}" * (len(state.users) + 1)  # row format
+    table = (
+        rf.format("", *state.users) + "\n\t" +
+        "\n\t".join([
+            rf.format(bill_id, * [v[u]["payment"] for u in state.users])
+            for (bill_id, v) in state.bills.items()
+        ])
+    )
+    print(
+        """
+
+        *** Current bills ***
+
+        <Key> Return to project menu
+
+
+        {0}
+
+        """.format(table)
+    )
+    ch = getch()
+    return state
+
+
 def display_balance(state):
+    balance = calculate_balance(state)
+    msg = "\n\t".join(
+        [u + ": " + str(round(balance[u])) for u in state.users]
+    )
+    print(
+        """
+
+        *** Current balance ***
+
+        <Key> Return to project menu
+
+
+        {0}
+
+        """.format(msg)
+    )
+    ch = getch()
     return state
 
 
@@ -226,6 +270,7 @@ def project_prompt(state):
             add_bill(state)        if ch == "a" else
             display_balance(state) if ch == "b" else
             export_results(state)  if ch == "e" else
+            log_bills(state)       if ch == "l" else
             print_results(state)   if ch == "p" else
             _quit()                if ch == "q" else
             save(state)            if ch == "s" else
@@ -234,11 +279,13 @@ def project_prompt(state):
 
     print(
         """
-        Your options consist of
+
+        *** Project menu ***
 
         <a> Add bill
         <b> Display current balance
         <e> Export results
+        <l> Log current bills
         <p> Print results
         <q> Quit
         <s> Save
