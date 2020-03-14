@@ -103,51 +103,55 @@ def _quit():
     quit()
 
 
+# Each of the actions perform some side-effects
+# and passthrough (possibly) altered state.
+
+
 def export_results(state):
-    return project_prompt(state)
+    return state
 
 
 def print_results(state):
-    return project_prompt(state)
+    return state
 
 
 def unknown(state):
     """Handle unknown selection
 
     """
-    return project_prompt(state)
+    return state
 
 
 def save(state):
-    return project_prompt(state)
+    return state
 
 
 def new_project(state):
-    return project_prompt(state)
+    return state
 
 
 def load(state):
-    return project_prompt(state)
+    return state
 
 
 def add_bill(state):
-    return project_prompt(state)
+    return state
 
 
 def display_balance(state):
-    return project_prompt(state)
+    return state
 
 
 def project_prompt(state):
 
-    def act(ch, state):
-        return (
-            add_bill(state) if ch == "a" else
+    def do(ch, state):
+        return project_prompt(
+            add_bill(state)        if ch == "a" else
             display_balance(state) if ch == "b" else
-            export_results(state) if ch == "e" else
-            print_results(state) if ch == "p" else
-            _quit() if ch == "q" else
-            save(state) if ch == "s" else
+            export_results(state)  if ch == "e" else
+            print_results(state)   if ch == "p" else
+            _quit()                if ch == "q" else
+            save(state)            if ch == "s" else
             unknown(state)
         )
 
@@ -164,16 +168,16 @@ def project_prompt(state):
 
         """
     )
-    return act(getch(), state)
+    return do(getch(), state)
 
 
 def main_prompt():
 
     def act(ch, state):
-        return (
+        return project_prompt(
             new_project(state) if ch == "n" else
-            load(state) if ch == "l" else
-            _quit() if ch == "q" else
+            load(state)        if ch == "l" else
+            _quit()            if ch == "q" else
             unknown(state)
         )
 
