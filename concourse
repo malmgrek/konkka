@@ -146,6 +146,7 @@ def new_project():
     workspace = input("Working directory> ")
     num = int(input("Number of users> "))
     users = [input("User #{0}> ".format(i + 1)) for i in range(num)]
+    clear()
     return State(
         name=name,
         workspace=workspace,
@@ -179,6 +180,7 @@ def add_bill(state):
         state.bills,
         {bill_id: payments}
     )
+    clear()
     return State(
         name=state.name,
         workspace=state.workspace,
