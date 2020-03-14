@@ -26,13 +26,25 @@ class State:
         self.workspace = workspace
         self.users = users
         self.bills = bills
+        self.filepath = os.path.join(
+            workspace, name + ".json"
+        )
 
     def save(self):
+        with open(self.filepath, "w+") as f:
+            json.dump(self.__dict__, f)
         return
 
     @classmethod
-    def load(cls, fp):
-        return
+    def load(cls, filepath):
+        with open(filepath, "r") as f:
+            raw = json.load(f)
+        return cls(
+            name=raw["name"],
+            workspace=raw["workspace"],
+            users=raw["users"],
+            bills=raw["bills"]
+        )
 
 
 def calculate_balance(state):
@@ -130,6 +142,8 @@ def unknown(state):
 
 
 def save(state):
+    state.save()
+    print("Saved as " + state.filepath)
     return state
 
 
@@ -155,8 +169,16 @@ def new_project():
     )
 
 
-def load(state):
-    return state
+def load():
+    print(
+        """
+
+        *** Load a project ***
+
+        """
+    )
+    filepath = input("Filepath> ")
+    return State.load(filepath)
 
 
 def add_bill(state):
@@ -227,7 +249,7 @@ def main_prompt():
     def act(ch, state):
         return project_prompt(
             new_project()      if ch == "n" else
-            load(state)        if ch == "l" else
+            load()        if ch == "l" else
             _quit()            if ch == "q" else
             unknown(state)
         )
