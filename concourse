@@ -312,6 +312,7 @@ def display_balance(state):
 
 def project_prompt(state):
     # TODO: Pass optional message to main menu
+    # TODO: Quit takes to main menu
 
     def do(ch, state):
         return project_prompt(
@@ -373,6 +374,7 @@ def main_prompt():
 
 
 if __name__ == "__main__":
-    # TODO: CSV import as cli argument
+    # TODO: CSV import as CLI argument
+    # TODO: Load path as CLI argument
     # NOTE: Interactive UI only in Linux but CSV import everywhere
     main_prompt()
