@@ -50,7 +50,7 @@ class State:
         )
 
 
-def calculate_balance(state):
+def calculate_balance(state) -> dict:
     """Calculate total balance from all events
 
     """
@@ -108,6 +108,8 @@ def getch():
     return ch
 
 
+# TODO: Templating
+#       - Support refresh hooks
 # TODO: Flashing message to project_prompt (e.g. unknown key)
 # TODO: Project summary to project_prompt
 # TODO: All prompt views to same height
@@ -151,7 +153,6 @@ def save(state):
 
 
 def new_project():
-    # TODO: Render method that prettily prints refreshes
     print(
         """
 
@@ -185,8 +186,6 @@ def load():
 
 
 def add_bill(state):
-    # TODO: Abort option
-    # TODO: Dynamic rendering of information
     print(
         """
 
@@ -225,7 +224,7 @@ def log_bills(state):
     table = (
         rf.format("", *state.users) + "\n\t" +
         "\n\t".join([
-            rf.format(bill_id, * [v[u]["payment"] for u in state.users])
+            rf.format(bill_id, *[v[u]["payment"] for u in state.users])
             for (bill_id, v) in state.bills.items()
         ])
     )
@@ -248,7 +247,7 @@ def log_bills(state):
 def display_balance(state):
     balance = calculate_balance(state)
     msg = "\n\t".join(
-        [u + ": " + str(round(balance[u])) for u in state.users]
+        [u + ": " + str(round(balance[u], 2)) for u in state.users]
     )
     print(
         """
@@ -267,6 +266,7 @@ def display_balance(state):
 
 
 def project_prompt(state):
+    # TODO: Pass optional message to main menu
 
     def do(ch, state):
         return project_prompt(
