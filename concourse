@@ -72,8 +72,34 @@ def calculate_balance(state) -> dict:
 def calculate_flow(state):
     """Calculate suggested money flow
 
+    The idea is to balance out with a minimal number of transactions.
+
     """
-    return dict()
+
+    def deduce(b):
+        # Most indebted pays to most borrowd
+        u_min = min(b, key=b.get)
+        u_max = max(b, key=b.get)
+        payment = min(abs(b[u_min]), abs(b[u_max]))
+        return (u_min, u_max, payment)
+
+    def pay(b, u_from, u_to, payment):
+        # Update balance with one transaction
+        return update_dict(b, {
+            u_from: b[u_from] + payment,
+            u_to: b[u_to] - payment
+        })
+
+    def flowflow(b, flow: list=[]):
+        # Balance out until everybody at zero
+        tract = deduce(b)
+        return (
+            flowflow(pay(b, *tract), flow + [tract])
+            if max(b.values()) > 1e-6 else
+            flow
+        )
+
+    return flowflow(calculate_balance(state))
 
 
 #
@@ -135,7 +161,26 @@ def export_results(state):
     return state
 
 
-def print_results(state):
+def display_results(state):
+    flow = calculate_flow(state)
+    msg = "\n\t".join([
+        "{0} --{1}--> {2}".format(
+            u_from, round(payment, 2), u_to
+        ) for (u_from, u_to, payment) in flow
+    ])
+    print(
+        """
+
+        *** Results ***
+
+        <Key> Return to project menu
+
+
+        {0}
+
+        """.format(msg)
+    )
+    ch = getch()
     return state
 
 
@@ -274,7 +319,7 @@ def project_prompt(state):
             display_balance(state) if ch == "b" else
             export_results(state)  if ch == "e" else
             log_bills(state)       if ch == "l" else
-            print_results(state)   if ch == "p" else
+            display_results(state)   if ch == "r" else
             _quit()                if ch == "q" else
             save(state)            if ch == "s" else
             unknown(state)
@@ -289,7 +334,7 @@ def project_prompt(state):
         <b> Display current balance
         <e> Export results
         <l> Log current bills
-        <p> Print results
+        <r> Display results
         <q> Quit
         <s> Save
 
