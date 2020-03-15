@@ -136,8 +136,8 @@ def getch():
 
 # TODO: Templating
 #       - Support refresh hooks
-# TODO: Flashing message to project_prompt (e.g. unknown key)
-# TODO: Project summary to project_prompt
+# TODO: Flashing message to venture_prompt (e.g. unknown key)
+# TODO: Venture summary to project_prompt
 # TODO: All prompt views to same height
 
 
@@ -173,7 +173,7 @@ def display_results(state):
 
         *** Results ***
 
-        <Key> Return to project menu
+        <Key> Return to venture menu
 
 
         {0}
@@ -197,15 +197,15 @@ def save(state):
     return state
 
 
-def new_project():
+def new_venture():
     print(
         """
 
-        *** New project ***
+        *** New venture ***
 
         """
     )
-    name = input("Project name> ")
+    name = input("Venture name> ")
     workspace = input("Working directory> ")
     num = int(input("Number of users> "))
     users = [input("User #{0}> ".format(i + 1)) for i in range(num)]
@@ -222,7 +222,7 @@ def load():
     print(
         """
 
-        *** Load a project ***
+        *** Load a venture ***
 
         """
     )
@@ -278,7 +278,7 @@ def log_bills(state):
 
         *** Current bills ***
 
-        <Key> Return to project menu
+        <Key> Return to venture menu
 
 
         {0}
@@ -299,7 +299,7 @@ def display_balance(state):
 
         *** Current balance ***
 
-        <Key> Return to project menu
+        <Key> Return to venture menu
 
 
         {0}
@@ -310,12 +310,12 @@ def display_balance(state):
     return state
 
 
-def project_prompt(state):
+def venture_prompt(state):
     # TODO: Pass optional message to main menu
     # TODO: Quit takes to main menu
 
     def do(ch, state):
-        return project_prompt(
+        return venture_prompt(
             add_bill(state)        if ch == "a" else
             display_balance(state) if ch == "b" else
             export_results(state)  if ch == "e" else
@@ -329,7 +329,7 @@ def project_prompt(state):
     print(
         """
 
-        *** Project menu ***
+        *** Venture menu ***
 
         <a> Add bill
         <b> Display current balance
@@ -347,8 +347,8 @@ def project_prompt(state):
 def main_prompt():
 
     def act(ch, state):
-        return project_prompt(
-            new_project()      if ch == "n" else
+        return venture_prompt(
+            new_venture()      if ch == "n" else
             load()             if ch == "l" else
             _quit()            if ch == "q" else
             unknown(state)
@@ -364,8 +364,8 @@ def main_prompt():
 
         *** Main menu ***
 
-        <n> Start a new project
-        <l> Load an existing project
+        <n> Start a new venture
+        <l> Load an existing venture
         <q> Quit
 
         """

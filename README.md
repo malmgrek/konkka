@@ -11,3 +11,5 @@ git clone git@github.com:malmgrek/concourse.git
 cd concourse && chmod +x concourse
 ./concourse
 ```
+
+## Run tests
