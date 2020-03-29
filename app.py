@@ -55,6 +55,58 @@ class State:
         )
 
 
+def calculate_balance(state) -> dict:
+    """Calculate total balance from all events
+
+    """
+    total = {
+        bill_id: sum([
+            v[u]["payment"] for u in state.users
+        ]) for (bill_id, v) in state.bills.items()
+    }
+    return {
+        u: sum([
+            (
+                v[u]["payment"] -
+                v[u]["share"] * total[bill_id]
+            ) for (bill_id, v) in state.bills.items()
+        ]) for u in state.users
+    }
+
+
+def calculate_flow(state):
+    """Calculate suggested money flow
+
+    The idea is to balance out with a minimal number of transactions.
+
+    """
+
+    def deduce(b):
+        # Most indebted pays to most borrowd
+        u_min = min(b, key=b.get)
+        u_max = max(b, key=b.get)
+        payment = min(abs(b[u_min]), abs(b[u_max]))
+        return (u_min, u_max, payment)
+
+    def pay(b, u_from, u_to, payment):
+        # Update balance with one transaction
+        return update_dict(b, {
+            u_from: b[u_from] + payment,
+            u_to: b[u_to] - payment
+        })
+
+    def flowflow(b, flow: list=[]):
+        # Balance out until everybody at zero
+        tract = deduce(b)
+        return (
+            flowflow(pay(b, *tract), flow + [tract])
+            if max(b.values()) > 1e-6 else
+            flow
+        )
+
+    return flowflow(calculate_balance(state))
+
+
 #
 # CLI handling utils
 #
