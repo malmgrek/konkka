@@ -147,17 +147,21 @@ class Screen:
 
         return color_setter
 
-    def render_title(self, text, color):
-        # TODO: Rectangle around title
+    def render_title(self, text, color_pair):
+        """Render title with color
+
+        TODO: Rectangle around title
+
+        """
 
         (h, w) = self.stdscr.getmaxyx()
-        x = int((w // 2) - (len(text) // 2) - len(text) % 2)
+        x = int((w // 3) - (len(text) // 2) - len(text) % 2)
         y = int((h // 4) - 2)
 
-        self.stdscr.attron(color)
+        self.stdscr.attron(color_pair)
         self.stdscr.attron(curses.A_BOLD)
         self.stdscr.addstr(y, x, text)
-        self.stdscr.attroff(color)
+        self.stdscr.attroff(color_pair)
         self.stdscr.attroff(curses.A_BOLD)
 
         return (y, x)
@@ -165,19 +169,29 @@ class Screen:
     def render_menu(
             self,
             title: str,
-            items: tuple,
-            color_pair=curses.color_pair(4)
+            items: dict,
+            color_pair,
+            key_hook=lambda f: f()
     ):
+        """Render menu with title
+
+        """
 
         # Render title
         (y, x) = self.render_title(title, color_pair)
-        render_item = lambda z, text: self.stdscr.addstr(z, x, text)
+        render_key = lambda z, key: key_hook(
+            lambda: self.stdscr.addstr(z, x, key)
+        )
+        render_value = lambda z, key, value: self.stdscr.addstr(
+            z, x + len(key) + 1, value
+        )
 
         # Render menu
-        for (i, item) in enumerate(items):
-            render_item(y + 2 + i, item)
+        for (i, (key, value)) in enumerate(items.items()):
+            render_key(y + 2 + i, key)
+            render_value(y + 2 + i, key, value)
 
-    def render_statusbar(self, text: str, color_pair=curses.color_pair(3)):
+    def render_statusbar(self, text: str, color_pair):
         """Render status bar
 
         """
@@ -197,15 +211,207 @@ class Screen:
             descr,
             nlines=1,
             ncols=30,
-            map_descr=lambda x: x
+            descr_hook=lambda f: f()
     ):
-        map_descr(lambda: self.stdscr.addstr(y, x, descr))
+        """User input with description
+
+        """
+        descr_hook(lambda: self.stdscr.addstr(y, x, descr))
         editwin = curses.newwin(nlines, ncols, y, x + len(descr))
         self.stdscr.refresh()
         box = Textbox(editwin)
         box.edit()
-        return box.gather()
+        return box.gather().strip()  # NOTE: adds one space
 
+    def user_input_statusbar(self, color_pair):
+        """Status bar with help for user input
+
+        """
+        self.render_statusbar(
+            "<Enter> Send <Ctrl-d> Delete backwards <Ctrl-f/b> Move right/left",
+            color_pair
+        )
+        return
+
+
+def App(stdscr):
+
+    # Initializations -------------------------------------------
+    curses.start_color()
+    curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
+    curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
+    curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_WHITE)
+    curses.init_pair(4, curses.COLOR_GREEN, curses.COLOR_BLACK)
+    curses.init_pair(5, curses.COLOR_BLUE, curses.COLOR_BLACK)
+    curses.curs_set(0)
+    # -----------------------------------------------------------
+
+    screen = Screen(stdscr)
+    blue = screen.create_color_setter(curses.color_pair(5))
+    green = screen.create_color_setter(curses.color_pair(4))
+    user_input = lambda y, x, descr: screen.user_input(
+        y, x, descr, descr_hook=green
+    )
+    title = lambda text: screen.render_title(text, curses.color_pair(2))
+
+    def user_input_statusbar(func):
+
+        def decorated(*args, **kwargs):
+            screen.user_input_statusbar(curses.color_pair(3))
+            return func(*args, **kwargs)
+
+        return decorated
+
+
+    def info_statusbar(func):
+
+        def decorated(*args, **kwargs):
+            screen.render_statusbar(
+                "Press any key to exit to venture menu",
+                curses.color_pair(3)
+            )
+            return func(*args, **kwargs)
+
+        return decorated
+
+    #
+    # Define methods
+    #
+
+
+    @screen.clean_refresh
+    @info_statusbar
+    def display_results(state):
+        (y, x) = title("*** Results ***")
+        flow = calculate_flow(state)
+
+        for (i, (u_from, u_to, payment)) in enumerate(flow):
+            screen.stdscr.addstr(
+                y + i + 2,
+                x,
+                "{0} -- {1} --> {2}".format(
+                    u_from, round(payment, 2), u_to
+                )
+            )
+        screen.stdscr.getch()
+        return state
+
+    def display_bills(state):
+        # TODO: Addstr -> test
+        screen.stdscr.getch()
+        return state
+
+    def save(state):
+        state.save()
+        screen.render_statusbar(
+            "Saved as " + state.filepath, curses.color_pair(3)
+        )
+        screen.stdscr.refresh()
+        return state
+
+    @screen.clean_refresh
+    @cursor
+    @user_input_statusbar
+    def add_bill(state):
+        (y, x) = title("*** Add bill ***")
+        bill_id = user_input(y + 2, x, "Identifier> ")
+        equal = user_input(y + 3, x, "Equal shares (y/n)> ")
+        payments = {
+            u: {
+                "payment": float(
+                    user_input(y + 4 + 2 * i, x, "{0} paid> ".format(u))
+                ),
+                "share": (
+                    1.0 / len(state.users) if equal == "y" else
+                    0.01 * float(
+                        user_input(
+                            y + 5 + 2 * i, x, "{0}'s percentage> ".format(u)
+                        )
+                    )
+                )
+            } for (i, u) in enumerate(state.users)
+        }
+        bills = update_dict(
+            state.bills,
+            {bill_id: payments}
+        )
+
+        return State(
+            name=state.name,
+            workspace=state.workspace,
+            users=state.users,
+            bills=bills
+        )
+
+    @screen.clean_refresh
+    @cursor
+    @user_input_statusbar
+    def new_venture():
+        (y, x) = title("*** New venture ***")
+        name = user_input(y + 2, x, "Venture name> ")
+        workspace = user_input(y + 3, x, "Working directory> ")
+        num = int(user_input(y + 4, x, "Number of users> "))
+        users = [
+            user_input(
+                y + 5 + i, x, "User #{0}> ".format(i + 1)
+            ) for i in range(num)
+        ]
+        return State(
+            name=name,
+            workspace=workspace,
+            users=users,
+            bills={}
+        )
+
+    @screen.clean_refresh
+    def test():
+        screen.render_menu(
+            "*** Main menu ***",
+            {
+                "[q]": "Quit",
+                "[s]": "Save"
+            },
+            curses.color_pair(4),
+            blue
+        )
+        screen.render_statusbar(
+            "(C) Greeks of Malmi, 2020",
+            curses.color_pair(3)
+        )
+        test_state = State(
+            name="test",
+            workspace="/home/stastr",
+            users=["John", "Jane"],
+            bills={}
+        )
+        # add_bill(test_state)
+        # new_venture()
+        save(test_state)
+        k = screen.stdscr.getch()
+        if k == ord("q"):
+            quit()
+
+    class _App:
+
+        def __repr__(self):
+            return "concourse.App"
+
+        def add_bill(self, state):
+            return add_bill(state)
+
+        def new_venture(self):
+            return new_venture()
+
+        def display_results(self, state):
+            return display_results(state)
+
+        def save(self, state):
+            return save(state)
+
+        def test(self):
+            return test()
+
+    return _App()
 
 def run(stdscr):
     """Run the app
@@ -219,27 +425,6 @@ def run(stdscr):
 
     """
     app = App(stdscr)
-
-    # Initializations -------------------------------------------
-    curses.start_color()
-    curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
-    curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
-    curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_WHITE)
-    curses.init_pair(4, curses.COLOR_GREEN, curses.COLOR_BLACK)
-    curses.curs_set(0)
-    # -----------------------------------------------------------
-
-    green = app.create_color_setter(curses.color_pair(4))
-
-    @clean_refresh
-    @cursor
-    def add_bill(state):
-
-        (y, x) = render_title("*** Add bill ***", curses.color_pair(2))
-        render_statusbar("<C-G> Send <C-d> Delete <C-f/b> Move right/left")
-
-        msg = user_input(y + 2, x, "Test insert> ")
-        msg2 = user_input(y + 3, x, "Another thing> ")
 
     # @reset
     # def main_menu():
@@ -281,23 +466,7 @@ def run(stdscr):
 
     # main_menu()
 
-    @clean_refresh
-    def test():
-        render_menu(
-            "*** Main menu ***",
-            (
-                "[q] Quit",
-                "[h] Help"
-            )
-        )
-        render_statusbar("(C) Greeks of Malmi, 2020")
-        # stdscr.getstr(10, 0, 10)  # get chars
-        add_bill(None)
-        k = stdscr.getch()
-        if k == ord("q"):
-            quit()
-
-    test()
+    app.test()
 
 
 def main():
