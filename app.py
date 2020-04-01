@@ -2,15 +2,27 @@
 
 """
 import curses
-from curses.textpad import Textbox, rectangle
+from curses.textpad import Textbox
 import json
 import os
 
 
-# TODO: Align different views (left side)
-# TODO: Front page
-# TODO: Prettier titles
-# TODO: Unicode images
+# FIXME: Crashes if lines exceed window
+# TODO: Add export results
+
+
+LOGO = [
+    " ▄████▄   ▒█████   ███▄    █  ▄████▄   ▒█████   █    ██  ██▀███    ██████ ▓█████ ",
+    "██▀ ▀█  ▒██▒  ██▒ ██ ▀█   █ ▒██▀ ▀█  ▒██▒  ██▒ ██  ▓██▒▓██ ▒ ██▒▒██    ▒ ▓█   ▀ ",
+    "▓█    ▄ ▒██░  ██▒▓██  ▀█ ██▒▒▓█    ▄ ▒██░  ██▒▓██  ▒██░▓██ ░▄█ ▒░ ▓██▄   ▒███   ",
+    "▓▓▄ ▄██▒▒██   ██░▓██▒  ▐▌██▒▒▓▓▄ ▄██▒▒██   ██░▓▓█  ░██░▒██▀▀█▄    ▒   ██▒▒▓█  ▄ ",
+    "▒ ▓███▀ ░░ ████▓▒░▒██░   ▓██░▒ ▓███▀ ░░ ████▓▒░▒▒█████▓ ░██▓ ▒██▒▒██████▒▒░▒████▒",
+    "░ ░▒ ▒  ░░ ▒░▒░▒░ ░ ▒░   ▒ ▒ ░ ░▒ ▒  ░░ ▒░▒░▒░ ░▒▓▒ ▒ ▒ ░ ▒▓ ░▒▓░▒ ▒▓▒ ▒ ░░░ ▒░ ░",
+    "  ░  ▒     ░ ▒ ▒░ ░ ░░   ░ ▒░  ░  ▒     ░ ▒ ▒░ ░░▒░ ░ ░   ░▒ ░ ▒░░ ░▒  ░ ░ ░ ░  ░",
+    "░        ░ ░ ░ ▒     ░   ░ ░ ░        ░ ░ ░ ▒   ░░░ ░ ░   ░░   ░ ░  ░  ░     ░   ",
+    "░ ░          ░ ░           ░ ░ ░          ░ ░     ░        ░           ░     ░  ░",
+    "░                            ░                                                   "
+]
 
 
 #
@@ -156,16 +168,22 @@ class Screen:
 
         return color_setter
 
-    def render_title(self, text, color_pair):
-        """Render title with color
+    def center_x(self, s: str):
+        (h, w) = self.stdscr.getmaxyx()
+        return int((w // 2) - (len(s) // 2) - len(s) % 2)
 
-        TODO: Rectangle around title
+    def center_y(self, s: str):
+        (h, w) = self.stdscr.getmaxyx()
+        return int((h // 2) - 2)
+
+    def render_title(self, text, color_pair, h0=0):
+        """Render title with color
 
         """
 
         (h, w) = self.stdscr.getmaxyx()
-        x = int((w // 3) - (10 // 2) - 10 % 2)
-        y = int((h // 4) - 2)
+        x = int((w // 4) - (len(text) // 4) - len(text) % 2)
+        y = int((h // 2 + h0) - 2)
 
         self.stdscr.attron(color_pair)
         self.stdscr.attron(curses.A_BOLD)
@@ -180,14 +198,19 @@ class Screen:
             title: str,
             items: dict,
             color_pair,
-            key_hook=lambda f: f()
+            key_hook=lambda f: f(),
+            h0=0
     ):
         """Render menu with title
 
         """
 
         # Render title
-        (y, x) = self.render_title(title, color_pair)
+        (y, x) = self.render_title(
+            text=title,
+            color_pair=color_pair,
+            h0=h0
+        )
         render_key = lambda z, key: key_hook(
             lambda: self.stdscr.addstr(z, x, key)
         )
@@ -226,7 +249,7 @@ class Screen:
 
         """
         descr_hook(lambda: self.stdscr.addstr(y, x, descr))
-        editwin = curses.newwin(nlines, ncols, y, x + len(descr))
+        editwin = curses.newwin(nlines, ncols, y + 1, x)
         self.stdscr.refresh()
         box = Textbox(editwin)
         box.edit()
@@ -251,7 +274,19 @@ def App(stdscr):
     user_input = lambda y, x, descr: screen.user_input(
         y, x, descr, ncols=50, descr_hook=green
     )
-    title = lambda text: screen.render_title(text, curses.color_pair(2))
+    title = lambda text, h0=0: screen.render_title(
+        text="\u25c6 " + text + " \u25c6 ",
+        color_pair=curses.color_pair(4),
+        h0=h0
+    )
+    menu = lambda title, items, h0=0: screen.render_menu(
+        title="\u25cf " + title + " \u25cf",
+        items=items,
+        color_pair=curses.color_pair(2),
+        key_hook=blue,
+        h0=h0
+    )
+
     info_text = "Press any key to exit to venture menu"
     user_input_text = (
         "<Enter> Send <Ctrl-d> Delete backwards <Ctrl-f/b> Move right/left"
@@ -279,7 +314,7 @@ def App(stdscr):
     @screen.clean_refresh
     @statusbar(info_text)
     def display_balance(state):
-        (y, x) = title("*** Balance ***")
+        (y, x) = title("Balance")
         balance = calculate_balance(state)
 
         for (i, u) in enumerate(state.users):
@@ -295,7 +330,7 @@ def App(stdscr):
     @screen.clean_refresh
     @statusbar(info_text)
     def display_results(state):
-        (y, x) = title("*** Results ***")
+        (y, x) = title("Results")
         flow = calculate_flow(state)
 
         for (i, (u_from, u_to, payment)) in enumerate(flow):
@@ -306,18 +341,26 @@ def App(stdscr):
                     u_from, round(payment, 2), u_to
                 )
             )
+
         screen.stdscr.getch()
         return state
 
     @screen.clean_refresh
     @statusbar(info_text)
     def display_bills(state):
-        (y, x) = title("*** Current bills ***")
+        (y, x) = title("Current bills")
         row_format = "{:<12}" * (len(state.users) + 1)
 
+        green(
+            lambda: screen.stdscr.addstr(
+                y + 2,
+                x,
+                row_format.format("", *state.users)
+            )
+        )
         for (i, (bill_id, v)) in enumerate(state.bills.items()):
             screen.stdscr.addstr(
-                y + i + 2,
+                y + i + 3,
                 x,
                 row_format.format(bill_id, *[v[u]["payment"] for u in state.users])
             )
@@ -334,29 +377,30 @@ def App(stdscr):
         return state
 
     @screen.clean_refresh
+    @cursor
+    @statusbar(user_input_text)
     def load():
-        (y, x) = title("*** Load venture ***")
-        filepath = user_input(y + 2, x, "Filepath> ")
+        (y, x) = title("Load venture")
+        filepath = user_input(y + 2, x, "<Filepath> ")
         return State.load(filepath)
 
     @screen.clean_refresh
     @cursor
     @statusbar(user_input_text)
     def add_bill(state):
-        (y, x) = title("*** Add bill ***")
-        bill_id = user_input(y + 2, x, "Identifier> ")
-        equal = user_input(y + 3, x, "Equal shares (y/n)> ")
-        # FIXME: With equal shares gaps between lines
+        (y, x) = title("Add bill")
+        bill_id = user_input(y + 2, x, "<Identifier> ")
+        equal = user_input(y + 4, x, "<Equal shares (y/n)> ")
         payments = {
             u: {
                 "payment": float(
-                    user_input(y + 4 + 2 * i, x, "{0} paid> ".format(u))
+                    user_input(y + 6, x, "<{0} paid> ".format(u))
                 ),
                 "share": (
                     1.0 / len(state.users) if equal == "y" else
                     0.01 * float(
                         user_input(
-                            y + 5 + 2 * i, x, "{0}'s percentage> ".format(u)
+                            y + 8, x, "<{0}'s percentage> ".format(u)
                         )
                     )
                 )
@@ -378,13 +422,13 @@ def App(stdscr):
     @cursor
     @statusbar(user_input_text)
     def new_venture():
-        (y, x) = title("*** New venture ***")
-        name = user_input(y + 2, x, "Venture name> ")
-        workspace = user_input(y + 3, x, "Working directory> ")
-        num = int(user_input(y + 4, x, "Number of users> "))
+        (y, x) = title("New venture")
+        name = user_input(y + 2, x, "<Venture name> ")
+        workspace = user_input(y + 4, x, "<Working directory> ")
+        num = int(user_input(y + 6, x, "<Number of users> "))
         users = [
             user_input(
-                y + 5 + i, x, "User #{0}> ".format(i + 1)
+                y + 8, x, "<User #{0}> ".format(i + 1)
             ) for i in range(num)
         ]
         return State(
@@ -409,17 +453,15 @@ def App(stdscr):
                 quit()
             )
 
-        screen.render_menu(
-            "*** Venture menu ***",
+        menu(
+            "Venture menu",
             {
                 "[a]": "Add bill",
                 "[b]": "Display bills",
                 "[c]": "Display balance",
                 "[r]": "Display results",
                 "[s]": "Save"
-            },
-            curses.color_pair(4),
-            blue
+            }
         )
 
         return event_loop(screen.stdscr.getch(), state)
@@ -435,46 +477,24 @@ def App(stdscr):
                 quit()
             )
 
-        screen.render_menu(
-            "*** Main menu ***",
+        def render_logo():
+            x = screen.center_x(LOGO[0])
+            y = 2
+            for (i, row) in enumerate(LOGO):
+                screen.stdscr.addstr(i + y, x, row)
+
+        green(render_logo)
+
+        menu(
+            "Main menu",
             {
                 "[n]": "New venture",
                 "[l]": "Load venture",
-            },
-            curses.color_pair(4),
-            blue
+            }
         )
 
         return event_loop(screen.stdscr.getch())
 
-    @screen.clean_refresh
-    def test():
-        # screen.render_menu(
-        #     "*** Main menu ***",
-        #     {
-        #         "[q]": "Quit",
-        #         "[s]": "Save"
-        #     },
-        #     curses.color_pair(4),
-        #     blue
-        # )
-        # screen.render_statusbar(
-        #     "(C) Greeks of Malmi, 2020",
-        #     curses.color_pair(3)
-        # )
-        # test_state = State(
-        #     name="test",
-        #     workspace="/home/stastr",
-        #     users=["John", "Jane"],
-        #     bills={}
-        # )
-        # # add_bill(test_state)
-        # # new_venture()
-        # save(test_state)
-        # k = screen.stdscr.getch()
-        # if k == ord("q"):
-        #     quit()
-        main_menu()
 
     class _App:
 
@@ -513,73 +533,26 @@ def App(stdscr):
         def main_menu():
             return main_menu()
 
-        @staticmethod
-        def test():
-            return test()
-
     return _App()
 
 def run(stdscr):
     """Run the app
 
-    NOTE: It makes sense to have define the actions outside of this script
-          but main_menu and venture_menu here as they are app specific whereas
-          the actions could be used anywhere. Also, then we don't need to
-          pass the argument stdscr to all menu functions.
-
-    TODO: Display tabular data
-
     """
     app = App(stdscr)
-
-    # @reset
-    # def main_menu():
-
-    #     def do(ch, state):
-    #         return venture_menu(
-    #             new_venture(stdscr) if ch == ord("n") else
-    #             load(stdscr)        if ch == ord("l") else
-    #             quit()              if ch == ord("q") else
-    #             unknown(stdscr)
-    #         )
-
-    #     render_menu(stdscr, "Test", {})
-
-    #     # TODO: Render a nice front title
-    #     # TODO: Render the menu here
-    #     # stdscr.addstr(0, 0, "Test", curses.color_pair(1))
-
-    #     return do(stdscr.getch(), {})
-
-    # @reset
-    # def venture_menu(state):
-
-    #     def do(ch, state):
-    #         return venture_menu(
-    #             add_bill(stdscr, state)        if ch == ord("a") else
-    #             display_balance(stdscr, state) if ch == ord("b") else
-    #             export_results(stdscr, state)  if ch == ord("e") else
-    #             log_bills(stdscr, state)       if ch == ord("l") else
-    #             display_results(stdscr, state) if ch == ord("r") else
-    #             quit()                         if ch == ord("q") else
-    #             save(stdscr, state)            if ch == ord("s") else
-    #             unknown(stdscr, state)
-    #         )
-
-    #     # TODO: Render stuff here
-
-    #     return do(stdscr.getch(), state)
-
-    # main_menu()
-
-    app.test()
+    app.main_menu()
 
 
 def main():
-    """Main loop
+    """Main script
 
     """
-    curses.wrapper(run)
+    try:
+        curses.wrapper(run)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        print("\n".join([""] + LOGO + [""]))
 
 
 if __name__ == "__main__":
