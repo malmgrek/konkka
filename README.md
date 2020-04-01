@@ -2,7 +2,7 @@
 
 With this command line tool it is possible to share costs of a joint
 venture such as a holiday trip. Written using only Python 3 standard lib.
-Linux terminal supported.
+The only requirement is to have Python installed.
 
 ## Setting up
 

@@ -11,6 +11,7 @@ import os
 
 # FIXME: Crashes if lines exceed window
 # TODO: Add export results
+# TODO: Add command line interface with CSV input
 # NOTE: Rendering very big tables won't make the app crash but
 #       will look weird due to the default line breaking
 
