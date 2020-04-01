@@ -1,5 +1,7 @@
 """Concourse terminal application for sharing costs
 
+Copyright (C) Stratos Staboulis, 2020
+
 """
 import curses
 from curses.textpad import Textbox
@@ -9,6 +11,8 @@ import os
 
 # FIXME: Crashes if lines exceed window
 # TODO: Add export results
+# NOTE: Rendering very big tables won't make the app crash but
+#       will look weird due to the default line breaking
 
 
 LOGO = [
@@ -150,6 +154,9 @@ class Screen:
         self.stdscr = stdscr
 
     def clean_refresh(self, func):
+        """Creates a decorator that resets screen
+
+        """
 
         def decorated(*args, **kwargs):
             self.stdscr.clear()
@@ -160,6 +167,9 @@ class Screen:
         return decorated
 
     def create_color_setter(self, color):
+        """Creates a color setter function
+
+        """
 
         def color_setter(func):
             self.stdscr.attron(color)
@@ -169,10 +179,16 @@ class Screen:
         return color_setter
 
     def center_x(self, s: str):
+        """Horizontal center position for word
+
+        """
         (h, w) = self.stdscr.getmaxyx()
         return int((w // 2) - (len(s) // 2) - len(s) % 2)
 
     def center_y(self, s: str):
+        """Vertical center position for word
+
+        """
         (h, w) = self.stdscr.getmaxyx()
         return int((h // 2) - 2)
 
@@ -258,7 +274,7 @@ class Screen:
 
 def App(stdscr):
 
-    # Initializations -------------------------------------------
+    # Curses initial definitions --------------------------------
     curses.start_color()
     curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
     curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
