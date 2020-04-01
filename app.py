@@ -7,6 +7,12 @@ import json
 import os
 
 
+# TODO: Align different views (left side)
+# TODO: Front page
+# TODO: Prettier titles
+# TODO: Unicode images
+
+
 #
 # Generic tools and state management
 #
@@ -113,6 +119,9 @@ def calculate_flow(state):
 
 
 def cursor(func):
+    """Decorator for turning cursor on
+
+    """
 
     def decorated(*args, **kwargs):
         curses.curs_set(1)
@@ -155,7 +164,7 @@ class Screen:
         """
 
         (h, w) = self.stdscr.getmaxyx()
-        x = int((w // 3) - (len(text) // 2) - len(text) % 2)
+        x = int((w // 3) - (10 // 2) - 10 % 2)
         y = int((h // 4) - 2)
 
         self.stdscr.attron(color_pair)
@@ -223,16 +232,6 @@ class Screen:
         box.edit()
         return box.gather().strip()  # NOTE: adds one space
 
-    def user_input_statusbar(self, color_pair):
-        """Status bar with help for user input
-
-        """
-        self.render_statusbar(
-            "<Enter> Send <Ctrl-d> Delete backwards <Ctrl-f/b> Move right/left",
-            color_pair
-        )
-        return
-
 
 def App(stdscr):
 
@@ -250,37 +249,51 @@ def App(stdscr):
     blue = screen.create_color_setter(curses.color_pair(5))
     green = screen.create_color_setter(curses.color_pair(4))
     user_input = lambda y, x, descr: screen.user_input(
-        y, x, descr, descr_hook=green
+        y, x, descr, ncols=50, descr_hook=green
     )
     title = lambda text: screen.render_title(text, curses.color_pair(2))
+    info_text = "Press any key to exit to venture menu"
+    user_input_text = (
+        "<Enter> Send <Ctrl-d> Delete backwards <Ctrl-f/b> Move right/left"
+    )
 
-    def user_input_statusbar(func):
+    def statusbar(text):
 
-        def decorated(*args, **kwargs):
-            screen.user_input_statusbar(curses.color_pair(3))
-            return func(*args, **kwargs)
+        def decorator(func):
 
-        return decorated
+            def decorated(*args, **kwargs):
+                screen.render_statusbar(
+                    text,
+                    curses.color_pair(3)
+                )
+                return func(*args, **kwargs)
 
+            return decorated
 
-    def info_statusbar(func):
-
-        def decorated(*args, **kwargs):
-            screen.render_statusbar(
-                "Press any key to exit to venture menu",
-                curses.color_pair(3)
-            )
-            return func(*args, **kwargs)
-
-        return decorated
+        return decorator
 
     #
     # Define methods
     #
 
+    @screen.clean_refresh
+    @statusbar(info_text)
+    def display_balance(state):
+        (y, x) = title("*** Balance ***")
+        balance = calculate_balance(state)
+
+        for (i, u) in enumerate(state.users):
+            screen.stdscr.addstr(
+                y + i + 2,
+                x,
+                u + ": " + str(round(balance[u], 2))
+            )
+
+        screen.stdscr.getch()
+        return state
 
     @screen.clean_refresh
-    @info_statusbar
+    @statusbar(info_text)
     def display_results(state):
         (y, x) = title("*** Results ***")
         flow = calculate_flow(state)
@@ -296,8 +309,19 @@ def App(stdscr):
         screen.stdscr.getch()
         return state
 
+    @screen.clean_refresh
+    @statusbar(info_text)
     def display_bills(state):
-        # TODO: Addstr -> test
+        (y, x) = title("*** Current bills ***")
+        row_format = "{:<12}" * (len(state.users) + 1)
+
+        for (i, (bill_id, v)) in enumerate(state.bills.items()):
+            screen.stdscr.addstr(
+                y + i + 2,
+                x,
+                row_format.format(bill_id, *[v[u]["payment"] for u in state.users])
+            )
+
         screen.stdscr.getch()
         return state
 
@@ -310,12 +334,19 @@ def App(stdscr):
         return state
 
     @screen.clean_refresh
+    def load():
+        (y, x) = title("*** Load venture ***")
+        filepath = user_input(y + 2, x, "Filepath> ")
+        return State.load(filepath)
+
+    @screen.clean_refresh
     @cursor
-    @user_input_statusbar
+    @statusbar(user_input_text)
     def add_bill(state):
         (y, x) = title("*** Add bill ***")
         bill_id = user_input(y + 2, x, "Identifier> ")
         equal = user_input(y + 3, x, "Equal shares (y/n)> ")
+        # FIXME: With equal shares gaps between lines
         payments = {
             u: {
                 "payment": float(
@@ -345,7 +376,7 @@ def App(stdscr):
 
     @screen.clean_refresh
     @cursor
-    @user_input_statusbar
+    @statusbar(user_input_text)
     def new_venture():
         (y, x) = title("*** New venture ***")
         name = user_input(y + 2, x, "Venture name> ")
@@ -363,52 +394,127 @@ def App(stdscr):
             bills={}
         )
 
+
     @screen.clean_refresh
-    def test():
+    @statusbar("Pressing other keys quits program")
+    def venture_menu(state):
+
+        def event_loop(ch, state):
+            return venture_menu(
+                add_bill(state)        if ch == ord("a") else
+                display_bills(state)   if ch == ord("b") else
+                display_balance(state) if ch == ord("c") else
+                display_results(state) if ch == ord("r") else
+                save(state)            if ch == ord("s") else
+                quit()
+            )
+
         screen.render_menu(
-            "*** Main menu ***",
+            "*** Venture menu ***",
             {
-                "[q]": "Quit",
+                "[a]": "Add bill",
+                "[b]": "Display bills",
+                "[c]": "Display balance",
+                "[r]": "Display results",
                 "[s]": "Save"
             },
             curses.color_pair(4),
             blue
         )
-        screen.render_statusbar(
-            "(C) Greeks of Malmi, 2020",
-            curses.color_pair(3)
+
+        return event_loop(screen.stdscr.getch(), state)
+
+    @screen.clean_refresh
+    @statusbar("Pressing other keys quits program")
+    def main_menu():
+
+        def event_loop(ch):
+            return venture_menu(
+                new_venture() if ch == ord("n") else
+                load()        if ch == ord("l") else
+                quit()
+            )
+
+        screen.render_menu(
+            "*** Main menu ***",
+            {
+                "[n]": "New venture",
+                "[l]": "Load venture",
+            },
+            curses.color_pair(4),
+            blue
         )
-        test_state = State(
-            name="test",
-            workspace="/home/stastr",
-            users=["John", "Jane"],
-            bills={}
-        )
-        # add_bill(test_state)
-        # new_venture()
-        save(test_state)
-        k = screen.stdscr.getch()
-        if k == ord("q"):
-            quit()
+
+        return event_loop(screen.stdscr.getch())
+
+    @screen.clean_refresh
+    def test():
+        # screen.render_menu(
+        #     "*** Main menu ***",
+        #     {
+        #         "[q]": "Quit",
+        #         "[s]": "Save"
+        #     },
+        #     curses.color_pair(4),
+        #     blue
+        # )
+        # screen.render_statusbar(
+        #     "(C) Greeks of Malmi, 2020",
+        #     curses.color_pair(3)
+        # )
+        # test_state = State(
+        #     name="test",
+        #     workspace="/home/stastr",
+        #     users=["John", "Jane"],
+        #     bills={}
+        # )
+        # # add_bill(test_state)
+        # # new_venture()
+        # save(test_state)
+        # k = screen.stdscr.getch()
+        # if k == ord("q"):
+        #     quit()
+        main_menu()
 
     class _App:
 
         def __repr__(self):
             return "concourse.App"
 
-        def add_bill(self, state):
+        @staticmethod
+        def add_bill(state):
             return add_bill(state)
 
-        def new_venture(self):
+        @staticmethod
+        def new_venture():
             return new_venture()
 
-        def display_results(self, state):
+        @staticmethod
+        def display_bills(state):
+            return display_bills(state)
+
+        @staticmethod
+        def display_results(state):
             return display_results(state)
 
-        def save(self, state):
+        @staticmethod
+        def save(state):
             return save(state)
 
-        def test(self):
+        @staticmethod
+        def load():
+            return load()
+
+        @staticmethod
+        def venture_menu(state):
+            return venture_menu(state)
+
+        @staticmethod
+        def main_menu():
+            return main_menu()
+
+        @staticmethod
+        def test():
             return test()
 
     return _App()
