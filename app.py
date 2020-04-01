@@ -7,11 +7,13 @@ import curses
 from curses.textpad import Textbox
 import json
 import os
+import time
 
 
 # FIXME: Crashes if lines exceed window
 # TODO: Add export results
 # TODO: Add command line interface with CSV input
+# TODO: Add back to main menu
 # NOTE: Rendering very big tables won't make the app crash but
 #       will look weird due to the default line breaking
 
@@ -391,6 +393,7 @@ def App(stdscr):
             "Saved as " + state.filepath, curses.color_pair(3)
         )
         screen.stdscr.refresh()
+        time.sleep(1)
         return state
 
     @screen.clean_refresh
