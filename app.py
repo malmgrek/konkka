@@ -13,6 +13,8 @@ import time
 
 
 # FIXME: Crashes if lines exceed window
+# TODO: Refactor print function definition to one place
+#       - Perhaps a generator function per print
 # TODO: Add export results
 # TODO: Add display shares function
 # TODO: Add back to main menu function
