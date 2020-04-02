@@ -1,8 +1,10 @@
-"""Concourse terminal application for sharing costs
+"""Concourse
 
-Copyright (C) Stratos Staboulis, 2020
+(C) Stratos Staboulis, 2020
 
 """
+import argparse
+import csv
 import curses
 from curses.textpad import Textbox
 import json
@@ -12,8 +14,11 @@ import time
 
 # FIXME: Crashes if lines exceed window
 # TODO: Add export results
-# TODO: Add command line interface with CSV input
-# TODO: Add back to main menu
+# TODO: Add display shares function
+# TODO: Add back to main menu function
+# TODO: Check that shares sum up to 100%
+# TODO: Tests: example json and csv input
+#       should return same reasonable results
 # NOTE: Rendering very big tables won't make the app crash but
 #       will look weird due to the default line breaking
 
@@ -135,6 +140,56 @@ def calculate_flow(state):
 #
 # CLI handling utils
 #
+
+
+def Parser():
+    """Parser for CLI arguments
+
+    File should be named "ProjectName.csv"
+
+    """
+
+    def convert_csv(filepath):
+        name = os.path.basename(filepath).split(".")[0]
+        workspace = os.path.dirname(filepath)
+
+        with open(filepath, "r") as csvfile:
+            rows = [
+                row for row in csv.reader(csvfile, delimiter=",", quotechar="|")
+            ]
+            users = rows[0][1:]
+            bills = {
+                p_row[0]: {
+                    u: {
+                        "payment": float(p_row[j+1]),
+                        "share": float(s_row[j+1]) / 100
+                    } for (j, u) in enumerate(users)
+                } for (p_row, s_row) in zip(rows[1::2], rows[2::2])
+            }
+
+        return State(
+            name=name,
+            workspace=workspace,
+            users=users,
+            bills=bills
+        )
+
+    parser = argparse.ArgumentParser(
+        description="Process concourse CL arguments"
+    )
+    parser.add_argument(
+        "--book", "-b",
+        default=None,
+        help="path to CSV containing bill information",
+        type=convert_csv
+    )
+    parser.add_argument(
+        "--state", "-s",
+        default=None,
+        help="path to JSON state file",
+        type=State.load
+    )
+    return parser
 
 
 def cursor(func):
@@ -356,7 +411,7 @@ def App(stdscr):
             screen.stdscr.addstr(
                 y + i + 2,
                 x,
-                "{0} -- {1} --> {2}".format(
+                "{0} \u2bc8 {1} \u2bc8 {2}".format(
                     u_from, round(payment, 2), u_to
                 )
             )
@@ -563,17 +618,29 @@ def run(stdscr):
     app.main_menu()
 
 
-def main():
+def main(state=None):
     """Main script
 
     """
-    try:
-        curses.wrapper(run)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        print("\n".join([""] + LOGO + [""]))
+    if state is None:
+        try:
+            curses.wrapper(run)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            print("\n".join([""] + LOGO + [""]))
+    else:
+        flow = calculate_flow(state)
+        for (u_from, u_to, payment) in flow:
+            print(
+                "{0} \u2bc8 {1} \u2bc8 {2}".format(
+                    u_from, round(payment, 2), u_to
+                )
+            )
 
 
 if __name__ == "__main__":
-    main()
+    namespace = Parser().parse_args()
+    main(
+        namespace.book or namespace.state
+    )
