@@ -59,7 +59,7 @@ class State:
     def __init__(self, name, workspace, users, bills):
         self.name = name
         self.workspace = workspace
-        self.users = users
+        self.users = sorted(users, key=len)
         self.bills = bills
         self.filepath = os.path.join(
             workspace, name + ".json"
