@@ -13,6 +13,8 @@ import time
 
 
 # FIXME: Crashes if lines exceed window
+# TODO: Refactor print function definition to one place
+#       - Perhaps a generator function per print
 # TODO: Add export results
 # TODO: Add display shares function
 # TODO: Add back to main menu function
@@ -24,17 +26,17 @@ import time
 
 
 LOGO = [
-    " ▄████▄   ▒█████   ███▄    █  ▄████▄   ▒█████   █    ██  ██▀███    ██████ ▓█████ ",
-    "██▀ ▀█  ▒██▒  ██▒ ██ ▀█   █ ▒██▀ ▀█  ▒██▒  ██▒ ██  ▓██▒▓██ ▒ ██▒▒██    ▒ ▓█   ▀ ",
-    "▓█    ▄ ▒██░  ██▒▓██  ▀█ ██▒▒▓█    ▄ ▒██░  ██▒▓██  ▒██░▓██ ░▄█ ▒░ ▓██▄   ▒███   ",
-    "▓▓▄ ▄██▒▒██   ██░▓██▒  ▐▌██▒▒▓▓▄ ▄██▒▒██   ██░▓▓█  ░██░▒██▀▀█▄    ▒   ██▒▒▓█  ▄ ",
-    "▒ ▓███▀ ░░ ████▓▒░▒██░   ▓██░▒ ▓███▀ ░░ ████▓▒░▒▒█████▓ ░██▓ ▒██▒▒██████▒▒░▒████▒",
-    "░ ░▒ ▒  ░░ ▒░▒░▒░ ░ ▒░   ▒ ▒ ░ ░▒ ▒  ░░ ▒░▒░▒░ ░▒▓▒ ▒ ▒ ░ ▒▓ ░▒▓░▒ ▒▓▒ ▒ ░░░ ▒░ ░",
-    "  ░  ▒     ░ ▒ ▒░ ░ ░░   ░ ▒░  ░  ▒     ░ ▒ ▒░ ░░▒░ ░ ░   ░▒ ░ ▒░░ ░▒  ░ ░ ░ ░  ░",
-    "░        ░ ░ ░ ▒     ░   ░ ░ ░        ░ ░ ░ ▒   ░░░ ░ ░   ░░   ░ ░  ░  ░     ░   ",
-    "░ ░          ░ ░           ░ ░ ░          ░ ░     ░        ░           ░     ░  ░",
-    "░                            ░                                                   "
+    " ██ ▄█▀ ▒█████   ███▄    █  ██ ▄█▀ ██ ▄█▀▄▄▄      ",
+    " ██▄█▒ ▒██▒  ██▒ ██ ▀█   █  ██▄█▒  ██▄█▒▒████▄    ",
+    "▓███▄░ ▒██░  ██▒▓██  ▀█ ██▒▓███▄░ ▓███▄░▒██  ▀█▄  ",
+    "▓██ █▄ ▒██   ██░▓██▒  ▐▌██▒▓██ █▄ ▓██ █▄░██▄▄▄▄██ ",
+    "▒██▒ █▄░ ████▓▒░▒██░   ▓██░▒██▒ █▄▒██▒ █▄▓█   ▓██▒",
+    "▒ ▒▒ ▓▒░ ▒░▒░▒░ ░ ▒░   ▒ ▒ ▒ ▒▒ ▓▒▒ ▒▒ ▓▒▒▒   ▓▒█░",
+    "░ ░▒ ▒░  ░ ▒ ▒░ ░ ░░   ░ ▒░░ ░▒ ▒░░ ░▒ ▒░ ▒   ▒▒ ░",
+    "░ ░░ ░ ░ ░ ░ ▒     ░   ░ ░ ░ ░░ ░ ░ ░░ ░  ░   ▒   ",
+    "░  ░       ░ ░           ░ ░  ░   ░  ░        ░  ░",
 ]
+
 
 
 #
@@ -57,7 +59,7 @@ class State:
     def __init__(self, name, workspace, users, bills):
         self.name = name
         self.workspace = workspace
-        self.users = users
+        self.users = sorted(users, key=len)
         self.bills = bills
         self.filepath = os.path.join(
             workspace, name + ".json"
@@ -574,7 +576,7 @@ def App(stdscr):
     class _App:
 
         def __repr__(self):
-            return "concourse.App"
+            return "konkka.App"
 
         @staticmethod
         def add_bill(state):
