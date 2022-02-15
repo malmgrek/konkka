@@ -68,12 +68,15 @@ class State:
         self.users = sorted(users, key=len)
         self.bills = {k: check_bill(v) for (k, v) in bills.items()}
 
+    @property
+    def filepath(self):
+        return os.path.join(self.workspace, self.name + ".json")
+
     def save(self):
         """Save to the pre-defined file
 
         """
-        filepath = os.path.join(workspace, name + ".json")
-        with open(filepath, "w+") as f:
+        with open(self.filepath, "w+") as f:
             json.dump(self.__dict__, f)
 
     @classmethod
