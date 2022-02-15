@@ -363,7 +363,7 @@ def App(stdscr):
         h0=h0
     )
 
-    info_text = "Press any key to exit to venture menu"
+    info_text = "Press any key to exit to project menu"
     user_input_text = (
         "<Enter> Send <Ctrl-d> Delete backwards <Ctrl-f/b> Move right/left"
     )
@@ -457,7 +457,7 @@ def App(stdscr):
     @cursor
     @statusbar(user_input_text)
     def load():
-        (y, x) = title("Load venture")
+        (y, x) = title("Load project")
         filepath = user_input(y + 2, x, "<Filepath> ")
         return State.load(filepath)
 
@@ -498,9 +498,9 @@ def App(stdscr):
     @screen.clean_refresh
     @cursor
     @statusbar(user_input_text)
-    def new_venture():
-        (y, x) = title("New venture")
-        name = user_input(y + 2, x, "<Venture name> ")
+    def new_project():
+        (y, x) = title("New project")
+        name = user_input(y + 2, x, "<Project name> ")
         workspace = user_input(y + 4, x, "<Working directory> ")
         num = int(user_input(y + 6, x, "<Number of users> "))
         users = [
@@ -518,10 +518,10 @@ def App(stdscr):
 
     @screen.clean_refresh
     @statusbar("Pressing other keys quits program")
-    def venture_menu(state):
+    def project_menu(state):
 
         def event_loop(ch, state):
-            return venture_menu(
+            return project_menu(
                 add_bill(state)        if ch == ord("a") else
                 display_bills(state)   if ch == ord("b") else
                 display_balance(state) if ch == ord("c") else
@@ -531,7 +531,7 @@ def App(stdscr):
             )
 
         menu(
-            "Venture menu",
+            "Project menu",
             {
                 "[a]": "Add bill",
                 "[b]": "Display bills",
@@ -548,8 +548,8 @@ def App(stdscr):
     def main_menu():
 
         def event_loop(ch):
-            return venture_menu(
-                new_venture() if ch == ord("n") else
+            return project_menu(
+                new_project() if ch == ord("n") else
                 load()        if ch == ord("l") else
                 quit()
             )
@@ -565,8 +565,8 @@ def App(stdscr):
         menu(
             "Main menu",
             {
-                "[n]": "New venture",
-                "[l]": "Load venture",
+                "[n]": "New project",
+                "[l]": "Load project",
             }
         )
 
@@ -583,8 +583,8 @@ def App(stdscr):
             return add_bill(state)
 
         @staticmethod
-        def new_venture():
-            return new_venture()
+        def new_project():
+            return new_project()
 
         @staticmethod
         def display_bills(state):
@@ -603,8 +603,8 @@ def App(stdscr):
             return load()
 
         @staticmethod
-        def venture_menu(state):
-            return venture_menu(state)
+        def project_menu(state):
+            return project_menu(state)
 
         @staticmethod
         def main_menu():

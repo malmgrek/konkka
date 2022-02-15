@@ -1,4 +1,4 @@
-# Konkka – Share costs of a joint venture
+# Konkka – Share costs of a joint project
 
 Playing around with Curses. Written using only Python 3 standard lib.
 The only requirement is to have Python installed.
