@@ -51,25 +51,29 @@ def update_dict(x: dict, y: dict) -> dict:
     return {**x, **y}
 
 
+def check_bill(bill):
+    total_share = sum([v["share"] for (user, v) in bill.items()])
+    assert abs(total_share - 1.0) < 1e-8, "Shares of must sum up to 1.0 for every bill."
+    return bill
+
+
 class State:
     """Program state manipulation
 
     """
 
-    def __init__(self, name, workspace, users, bills):
+    def __init__(self, users, bills, name=None, workspace=None):
         self.name = name
         self.workspace = workspace
         self.users = sorted(users, key=len)
-        self.bills = bills
-        self.filepath = os.path.join(
-            workspace, name + ".json"
-        )
+        self.bills = {k: check_bill(v) for (k, v) in bills.items()}
 
     def save(self):
         """Save to the pre-defined file
 
         """
-        with open(self.filepath, "w+") as f:
+        filepath = os.path.join(workspace, name + ".json")
+        with open(filepath, "w+") as f:
             json.dump(self.__dict__, f)
 
     @classmethod
@@ -80,10 +84,10 @@ class State:
         with open(filepath, "r") as f:
             raw = json.load(f)
         return cls(
-            name=raw["name"],
-            workspace=raw["workspace"],
             users=raw["users"],
-            bills=raw["bills"]
+            bills=raw["bills"],
+            name=raw["name"],
+            workspace=raw["workspace"]
         )
 
     def calculate_balance(self) -> dict:
@@ -162,10 +166,10 @@ def Parser():
             }
 
         return State(
+            users=users,
+            bills=bills,
             name=name,
             workspace=workspace,
-            users=users,
-            bills=bills
         )
 
     parser = argparse.ArgumentParser(
@@ -361,6 +365,9 @@ def App(stdscr):
     )
 
     def statusbar(text):
+        """Helper decorator for invoking a statusbar with given text
+
+        """
 
         def decorator(func):
 
@@ -376,7 +383,7 @@ def App(stdscr):
         return decorator
 
     #
-    # Define methods
+    # Define features / pages ---------------------------
     #
 
     @screen.clean_refresh
@@ -466,7 +473,9 @@ def App(stdscr):
                     user_input(y + 6, x, "<{0} paid> ".format(u))
                 ),
                 "share": (
-                    1.0 / len(state.users) if equal == "y" else
+                    1.0 / len(state.users) if (
+                        equal == "" or equal == "y"
+                    ) else
                     0.01 * float(
                         user_input(
                             y + 8, x, "<{0}'s percentage> ".format(u)
@@ -481,10 +490,10 @@ def App(stdscr):
         )
 
         return State(
-            name=state.name,
-            workspace=state.workspace,
             users=state.users,
-            bills=bills
+            bills=bills,
+            name=state.name,
+            workspace=state.workspace
         )
 
     @screen.clean_refresh
@@ -501,10 +510,10 @@ def App(stdscr):
             ) for i in range(num)
         ]
         return State(
-            name=name,
-            workspace=workspace,
             users=users,
-            bills={}
+            bills={},
+            name=name,
+            workspace=workspace
         )
 
 
