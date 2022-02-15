@@ -86,57 +86,49 @@ class State:
             bills=raw["bills"]
         )
 
+    def calculate_balance(self) -> dict:
+        """Calculate total balance from all events
 
-def calculate_balance(state) -> dict:
-    """Calculate total balance from all events
+        """
+        total = {
+            bill_id: sum([
+                v[u]["payment"] for u in self.users
+            ]) for (bill_id, v) in self.bills.items()
+        }
+        return {
+            u: sum([
+                (
+                    v[u]["payment"] -
+                    v[u]["share"] * total[bill_id]
+                ) for (bill_id, v) in self.bills.items()
+            ]) for u in self.users
+        }
 
-    """
-    total = {
-        bill_id: sum([
-            v[u]["payment"] for u in state.users
-        ]) for (bill_id, v) in state.bills.items()
-    }
-    return {
-        u: sum([
-            (
-                v[u]["payment"] -
-                v[u]["share"] * total[bill_id]
-            ) for (bill_id, v) in state.bills.items()
-        ]) for u in state.users
-    }
+    def calculate_flow(self):
+        """Calculate suggested money flow
 
+        The idea is to balance out with a minimal number of transactions.
 
-def calculate_flow(state):
-    """Calculate suggested money flow
+        """
 
-    The idea is to balance out with a minimal number of transactions.
+        flow = []
+        balance = self.calculate_balance()
+        while max(balance.values()) > 1e-6:
+            u_min = min(balance, key=balance.get)
+            u_max = max(balance, key=balance.get)
+            payment = min(abs(balance[u_min]), abs(balance[u_max]))
+            # Update balance with one more transaction
+            balance = update_dict(
+                balance,
+                # Most indebted pays to most borrowed
+                {
+                    u_min: balance[u_min] + payment,
+                    u_max: balance[u_max] - payment,
+                }
+            )
+            flow += [(u_min, u_max, payment)]
 
-    """
-
-    def deduce(b):
-        # Most indebted pays to most borrowd
-        u_min = min(b, key=b.get)
-        u_max = max(b, key=b.get)
-        payment = min(abs(b[u_min]), abs(b[u_max]))
-        return (u_min, u_max, payment)
-
-    def pay(b, u_from, u_to, payment):
-        # Update balance with one transaction
-        return update_dict(b, {
-            u_from: b[u_from] + payment,
-            u_to: b[u_to] - payment
-        })
-
-    def flowflow(b, flow: list=[]):
-        # Balance out until everybody at zero
-        tract = deduce(b)
-        return (
-            flowflow(pay(b, *tract), flow + [tract])
-            if max(b.values()) > 1e-6 else
-            flow
-        )
-
-    return flowflow(calculate_balance(state))
+        return flow
 
 
 #
@@ -391,7 +383,7 @@ def App(stdscr):
     @statusbar(info_text)
     def display_balance(state):
         (y, x) = title("Balance")
-        balance = calculate_balance(state)
+        balance = state.calculate_balance()
 
         for (i, u) in enumerate(state.users):
             screen.stdscr.addstr(
@@ -407,7 +399,7 @@ def App(stdscr):
     @statusbar(info_text)
     def display_results(state):
         (y, x) = title("Results")
-        flow = calculate_flow(state)
+        flow = state.calculate_flow()
 
         for (i, (u_from, u_to, payment)) in enumerate(flow):
             screen.stdscr.addstr(
@@ -632,7 +624,7 @@ def main(state=None):
         finally:
             print("\n".join([""] + LOGO + [""]))
     else:
-        flow = calculate_flow(state)
+        flow = state.calculate_flow()
         for (u_from, u_to, payment) in flow:
             print(
                 "{0} \u2bc8 {1} \u2bc8 {2}".format(
