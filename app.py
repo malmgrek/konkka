@@ -51,19 +51,26 @@ def update_dict(x: dict, y: dict) -> dict:
     return {**x, **y}
 
 
+def check_bill(bill):
+    total_share = sum([v["share"] for (user, v) in bill.items()])
+    assert abs(total_share - 1.0) < 1e-8, "Shares of must sum up to 1.0 for every bill."
+    return bill
+
+
 class State:
     """Program state manipulation
 
     """
 
-    def __init__(self, name, workspace, users, bills):
+    def __init__(self, users, bills, name=None, workspace=None):
         self.name = name
         self.workspace = workspace
         self.users = sorted(users, key=len)
-        self.bills = bills
-        self.filepath = os.path.join(
-            workspace, name + ".json"
-        )
+        self.bills = {k: check_bill(v) for (k, v) in bills.items()}
+
+    @property
+    def filepath(self):
+        return os.path.join(self.workspace, self.name + ".json")
 
     def save(self):
         """Save to the pre-defined file
@@ -80,63 +87,55 @@ class State:
         with open(filepath, "r") as f:
             raw = json.load(f)
         return cls(
-            name=raw["name"],
-            workspace=raw["workspace"],
             users=raw["users"],
-            bills=raw["bills"]
+            bills=raw["bills"],
+            name=raw["name"],
+            workspace=raw["workspace"]
         )
 
+    def calculate_balance(self) -> dict:
+        """Calculate total balance from all events
 
-def calculate_balance(state) -> dict:
-    """Calculate total balance from all events
+        """
+        total = {
+            bill_id: sum([
+                v[u]["payment"] for u in self.users
+            ]) for (bill_id, v) in self.bills.items()
+        }
+        return {
+            u: sum([
+                (
+                    v[u]["payment"] -
+                    v[u]["share"] * total[bill_id]
+                ) for (bill_id, v) in self.bills.items()
+            ]) for u in self.users
+        }
 
-    """
-    total = {
-        bill_id: sum([
-            v[u]["payment"] for u in state.users
-        ]) for (bill_id, v) in state.bills.items()
-    }
-    return {
-        u: sum([
-            (
-                v[u]["payment"] -
-                v[u]["share"] * total[bill_id]
-            ) for (bill_id, v) in state.bills.items()
-        ]) for u in state.users
-    }
+    def calculate_flow(self):
+        """Calculate suggested money flow
 
+        The idea is to balance out with a minimal number of transactions.
 
-def calculate_flow(state):
-    """Calculate suggested money flow
+        """
 
-    The idea is to balance out with a minimal number of transactions.
+        flow = []
+        balance = self.calculate_balance()
+        while max(balance.values()) > 1e-6:
+            u_min = min(balance, key=balance.get)
+            u_max = max(balance, key=balance.get)
+            payment = min(abs(balance[u_min]), abs(balance[u_max]))
+            # Update balance with one more transaction
+            balance = update_dict(
+                balance,
+                # Most indebted pays to most borrowed
+                {
+                    u_min: balance[u_min] + payment,
+                    u_max: balance[u_max] - payment,
+                }
+            )
+            flow += [(u_min, u_max, payment)]
 
-    """
-
-    def deduce(b):
-        # Most indebted pays to most borrowd
-        u_min = min(b, key=b.get)
-        u_max = max(b, key=b.get)
-        payment = min(abs(b[u_min]), abs(b[u_max]))
-        return (u_min, u_max, payment)
-
-    def pay(b, u_from, u_to, payment):
-        # Update balance with one transaction
-        return update_dict(b, {
-            u_from: b[u_from] + payment,
-            u_to: b[u_to] - payment
-        })
-
-    def flowflow(b, flow: list=[]):
-        # Balance out until everybody at zero
-        tract = deduce(b)
-        return (
-            flowflow(pay(b, *tract), flow + [tract])
-            if max(b.values()) > 1e-6 else
-            flow
-        )
-
-    return flowflow(calculate_balance(state))
+        return flow
 
 
 #
@@ -170,10 +169,10 @@ def Parser():
             }
 
         return State(
+            users=users,
+            bills=bills,
             name=name,
             workspace=workspace,
-            users=users,
-            bills=bills
         )
 
     parser = argparse.ArgumentParser(
@@ -363,12 +362,15 @@ def App(stdscr):
         h0=h0
     )
 
-    info_text = "Press any key to exit to venture menu"
+    info_text = "Press any key to exit to project menu"
     user_input_text = (
         "<Enter> Send <Ctrl-d> Delete backwards <Ctrl-f/b> Move right/left"
     )
 
     def statusbar(text):
+        """Helper decorator for invoking a statusbar with given text
+
+        """
 
         def decorator(func):
 
@@ -384,14 +386,14 @@ def App(stdscr):
         return decorator
 
     #
-    # Define methods
+    # Define features / pages ---------------------------
     #
 
     @screen.clean_refresh
     @statusbar(info_text)
     def display_balance(state):
         (y, x) = title("Balance")
-        balance = calculate_balance(state)
+        balance = state.calculate_balance()
 
         for (i, u) in enumerate(state.users):
             screen.stdscr.addstr(
@@ -407,7 +409,7 @@ def App(stdscr):
     @statusbar(info_text)
     def display_results(state):
         (y, x) = title("Results")
-        flow = calculate_flow(state)
+        flow = state.calculate_flow()
 
         for (i, (u_from, u_to, payment)) in enumerate(flow):
             screen.stdscr.addstr(
@@ -457,7 +459,7 @@ def App(stdscr):
     @cursor
     @statusbar(user_input_text)
     def load():
-        (y, x) = title("Load venture")
+        (y, x) = title("Load project")
         filepath = user_input(y + 2, x, "<Filepath> ")
         return State.load(filepath)
 
@@ -474,7 +476,9 @@ def App(stdscr):
                     user_input(y + 6, x, "<{0} paid> ".format(u))
                 ),
                 "share": (
-                    1.0 / len(state.users) if equal == "y" else
+                    1.0 / len(state.users) if (
+                        equal == "" or equal == "y"
+                    ) else
                     0.01 * float(
                         user_input(
                             y + 8, x, "<{0}'s percentage> ".format(u)
@@ -489,18 +493,18 @@ def App(stdscr):
         )
 
         return State(
-            name=state.name,
-            workspace=state.workspace,
             users=state.users,
-            bills=bills
+            bills=bills,
+            name=state.name,
+            workspace=state.workspace
         )
 
     @screen.clean_refresh
     @cursor
     @statusbar(user_input_text)
-    def new_venture():
-        (y, x) = title("New venture")
-        name = user_input(y + 2, x, "<Venture name> ")
+    def new_project():
+        (y, x) = title("New project")
+        name = user_input(y + 2, x, "<Project name> ")
         workspace = user_input(y + 4, x, "<Working directory> ")
         num = int(user_input(y + 6, x, "<Number of users> "))
         users = [
@@ -509,19 +513,19 @@ def App(stdscr):
             ) for i in range(num)
         ]
         return State(
-            name=name,
-            workspace=workspace,
             users=users,
-            bills={}
+            bills={},
+            name=name,
+            workspace=workspace
         )
 
 
     @screen.clean_refresh
     @statusbar("Pressing other keys quits program")
-    def venture_menu(state):
+    def project_menu(state):
 
         def event_loop(ch, state):
-            return venture_menu(
+            return project_menu(
                 add_bill(state)        if ch == ord("a") else
                 display_bills(state)   if ch == ord("b") else
                 display_balance(state) if ch == ord("c") else
@@ -531,7 +535,7 @@ def App(stdscr):
             )
 
         menu(
-            "Venture menu",
+            "Project menu",
             {
                 "[a]": "Add bill",
                 "[b]": "Display bills",
@@ -548,8 +552,8 @@ def App(stdscr):
     def main_menu():
 
         def event_loop(ch):
-            return venture_menu(
-                new_venture() if ch == ord("n") else
+            return project_menu(
+                new_project() if ch == ord("n") else
                 load()        if ch == ord("l") else
                 quit()
             )
@@ -565,59 +569,16 @@ def App(stdscr):
         menu(
             "Main menu",
             {
-                "[n]": "New venture",
-                "[l]": "Load venture",
+                "[n]": "New project",
+                "[l]": "Load project",
             }
         )
 
         return event_loop(screen.stdscr.getch())
 
+    main_menu()
 
-    class _App:
-
-        def __repr__(self):
-            return "konkka.App"
-
-        @staticmethod
-        def add_bill(state):
-            return add_bill(state)
-
-        @staticmethod
-        def new_venture():
-            return new_venture()
-
-        @staticmethod
-        def display_bills(state):
-            return display_bills(state)
-
-        @staticmethod
-        def display_results(state):
-            return display_results(state)
-
-        @staticmethod
-        def save(state):
-            return save(state)
-
-        @staticmethod
-        def load():
-            return load()
-
-        @staticmethod
-        def venture_menu(state):
-            return venture_menu(state)
-
-        @staticmethod
-        def main_menu():
-            return main_menu()
-
-    return _App()
-
-def run(stdscr):
-    """Run the app
-
-    """
-    app = App(stdscr)
-    app.main_menu()
+    return True
 
 
 def main(state=None):
@@ -626,13 +587,14 @@ def main(state=None):
     """
     if state is None:
         try:
-            curses.wrapper(run)
+            # Calls App automatically with the stdscr argument
+            exit_status = curses.wrapper(App)
         except KeyboardInterrupt:
             pass
         finally:
             print("\n".join([""] + LOGO + [""]))
     else:
-        flow = calculate_flow(state)
+        flow = state.calculate_flow()
         for (u_from, u_to, payment) in flow:
             print(
                 "{0} \u2bc8 {1} \u2bc8 {2}".format(

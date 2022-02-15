@@ -4,8 +4,10 @@
 ## 0.1.1
 
 ### Added
-### Changed
-### Fixed
+- Content to readme
+
+### Removed
+- Unused boilerplate code
 
 
 ## 0.1.0
