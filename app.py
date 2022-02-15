@@ -564,52 +564,9 @@ def App(stdscr):
 
         return event_loop(screen.stdscr.getch())
 
+    main_menu()
 
-    class _App:
-
-        def __repr__(self):
-            return "konkka.App"
-
-        @staticmethod
-        def add_bill(state):
-            return add_bill(state)
-
-        @staticmethod
-        def new_project():
-            return new_project()
-
-        @staticmethod
-        def display_bills(state):
-            return display_bills(state)
-
-        @staticmethod
-        def display_results(state):
-            return display_results(state)
-
-        @staticmethod
-        def save(state):
-            return save(state)
-
-        @staticmethod
-        def load():
-            return load()
-
-        @staticmethod
-        def project_menu(state):
-            return project_menu(state)
-
-        @staticmethod
-        def main_menu():
-            return main_menu()
-
-    return _App()
-
-def run(stdscr):
-    """Run the app
-
-    """
-    app = App(stdscr)
-    app.main_menu()
+    return True
 
 
 def main(state=None):
@@ -618,7 +575,8 @@ def main(state=None):
     """
     if state is None:
         try:
-            curses.wrapper(run)
+            # Calls App automatically with the stdscr argument
+            exit_status = curses.wrapper(App)
         except KeyboardInterrupt:
             pass
         finally:
